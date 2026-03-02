@@ -14,9 +14,9 @@ This project solves that problem. It is a **Retrieval-Augmented Generation (RAG)
 |-----------|------|
 | **Report** | Swiggy Limited — Annual Report FY 2023-24 |
 | **Format** | PDF |
-| **Public Link** | [Swiggy Annual Report (C:\Users\udayw\NEWEL\data\swiggy_annual_report.pdf) |
+| **Public Link** | (https://drive.google.com/file/d/1Be9zLsH5oJw7UnuRIO0_8rKqoR42w8jy/view?usp=sharing) |
 
-> The report was sourced from publicly available regulatory filings on BSE India.
+> The report was sourced from publicly available on drive.
 
 ---
 
