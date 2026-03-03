@@ -66,7 +66,10 @@ def format_source_context(documents: List[Document]) -> str:
 def ask_question(
     vector_store: FAISS,
     question: str,
+    max_retries: int = 3,
 ) -> Tuple[str, str]:
+    import time as _time
+
     relevant_docs = similarity_search(vector_store, question)
     context = "\n\n---\n\n".join([doc.page_content for doc in relevant_docs])
 
@@ -77,11 +80,19 @@ def ask_question(
         input=question,
     )
 
-    response = llm.invoke(filled_prompt)
-    answer = response.content
-    sources = format_source_context(relevant_docs)
-
-    return answer, sources
+    for attempt in range(max_retries):
+        try:
+            response = llm.invoke(filled_prompt)
+            answer = response.content
+            sources = format_source_context(relevant_docs)
+            return answer, sources
+        except Exception as e:
+            if ("429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)) and attempt < max_retries - 1:
+                wait = 30 * (attempt + 1)
+                print(f"Rate limited on LLM call. Retrying in {wait}s...")
+                _time.sleep(wait)
+            else:
+                raise
 
 
 if __name__ == "__main__":

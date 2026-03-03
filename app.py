@@ -3,70 +3,40 @@ import threading
 import gradio as gr
 
 vector_store = None
-init_status_msg = "Initializing system automatically..."
+init_status_msg = "System starting up..."
 init_lock = threading.Lock()
 
 
 def _background_init():
     global vector_store, init_status_msg
     try:
-        from src.config import PDF_PATH
-        from src.document_processor import process_document
         from src.vector_store import build_or_load_vector_store, vector_store_exists
 
         with init_lock:
             if vector_store is not None:
                 return
-
             if vector_store_exists():
                 vector_store = build_or_load_vector_store()
-                init_status_msg = "Vector store loaded from disk. Ready to answer questions!"
+                init_status_msg = "System ready! Ask any question about the Swiggy Annual Report."
             else:
-                if not PDF_PATH.exists():
-                    init_status_msg = (
-                        f"PDF not found at:\n{PDF_PATH}\n\n"
-                        "Please place the Swiggy Annual Report PDF in the data/ folder."
-                    )
-                    return
-                chunks = process_document()
-                vector_store = build_or_load_vector_store(chunks)
-                init_status_msg = f"Document processed: {len(chunks)} chunks indexed. Ready to answer questions!"
+                init_status_msg = "Error: Vector store not found. Please rebuild it locally and push to git."
     except Exception as e:
         init_status_msg = f"Error during initialization: {str(e)}"
 
 
 def initialize_system():
     global vector_store
-
     if vector_store is not None:
         return init_status_msg
-
-    try:
-        from src.config import PDF_PATH
-        from src.document_processor import process_document
-        from src.vector_store import build_or_load_vector_store, vector_store_exists
-
-        if vector_store_exists():
-            vector_store = build_or_load_vector_store()
-            return "Vector store loaded from disk. Ready to answer questions!"
-        else:
-            if not PDF_PATH.exists():
-                return (
-                    f"PDF not found at:\n{PDF_PATH}\n\n"
-                    "Please place the Swiggy Annual Report PDF in the data/ folder."
-                )
-            chunks = process_document()
-            vector_store = build_or_load_vector_store(chunks)
-            return f"Document processed: {len(chunks)} chunks indexed. Ready to answer questions!"
-    except Exception as e:
-        return f"Error during initialization: {str(e)}"
+    _background_init()
+    return init_status_msg
 
 
 def answer_query(question, history):
     global vector_store
 
     if vector_store is None:
-        return "Please click Initialize System first before asking questions.", ""
+        return "Please click 'Initialize System' first.", ""
 
     if not question.strip():
         return "Please enter a question.", ""
@@ -79,6 +49,8 @@ def answer_query(question, history):
         elapsed = round(time.time() - start_time, 2)
         return f"{answer}\n\n*Response time: {elapsed}s*", sources
     except Exception as e:
+        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+            return "The API is temporarily rate-limited. Please wait 30 seconds and try again.", ""
         return f"Error: {str(e)}", ""
 
 
