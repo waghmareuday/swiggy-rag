@@ -1,14 +1,45 @@
 import time
+import threading
 import gradio as gr
 
 vector_store = None
+init_status_msg = "Initializing system automatically..."
+init_lock = threading.Lock()
+
+
+def _background_init():
+    global vector_store, init_status_msg
+    try:
+        from src.config import PDF_PATH
+        from src.document_processor import process_document
+        from src.vector_store import build_or_load_vector_store, vector_store_exists
+
+        with init_lock:
+            if vector_store is not None:
+                return
+
+            if vector_store_exists():
+                vector_store = build_or_load_vector_store()
+                init_status_msg = "Vector store loaded from disk. Ready to answer questions!"
+            else:
+                if not PDF_PATH.exists():
+                    init_status_msg = (
+                        f"PDF not found at:\n{PDF_PATH}\n\n"
+                        "Please place the Swiggy Annual Report PDF in the data/ folder."
+                    )
+                    return
+                chunks = process_document()
+                vector_store = build_or_load_vector_store(chunks)
+                init_status_msg = f"Document processed: {len(chunks)} chunks indexed. Ready to answer questions!"
+    except Exception as e:
+        init_status_msg = f"Error during initialization: {str(e)}"
 
 
 def initialize_system():
     global vector_store
 
     if vector_store is not None:
-        return "System already initialized and ready."
+        return init_status_msg
 
     try:
         from src.config import PDF_PATH
@@ -151,6 +182,9 @@ if __name__ == "__main__":
     is_cloud = os.environ.get("RENDER", "")
 
     print(f"Starting server on port {port} (cloud={bool(is_cloud)})")
+
+    threading.Thread(target=_background_init, daemon=True).start()
+    print("Background initialization started...")
 
     app = build_ui()
     app.launch(

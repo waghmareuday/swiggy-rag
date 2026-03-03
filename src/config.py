@@ -12,7 +12,7 @@ PDF_PATH = DATA_DIR / "swiggy_annual_report.pdf"
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
 GEMINI_MODEL = "gemini-2.5-flash"
 
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "models/text-embedding-004"
 
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200

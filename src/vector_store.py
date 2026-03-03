@@ -1,19 +1,18 @@
 from pathlib import Path
 from typing import List, Optional
 
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
-from src.config import EMBEDDING_MODEL_NAME, VECTORSTORE_DIR, TOP_K
+from src.config import EMBEDDING_MODEL_NAME, VECTORSTORE_DIR, TOP_K, GOOGLE_API_KEY
 
 
-def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME) -> HuggingFaceEmbeddings:
+def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME):
     print(f"Loading embedding model: {model_name}")
-    embeddings = HuggingFaceEmbeddings(
-        model_name=model_name,
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True},
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model=model_name,
+        google_api_key=GOOGLE_API_KEY,
     )
     print("  Embedding model loaded")
     return embeddings
@@ -21,7 +20,7 @@ def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME) -> HuggingFaceEm
 
 def create_vector_store(
     chunks: List[Document],
-    embeddings: Optional[HuggingFaceEmbeddings] = None,
+    embeddings=None,
     persist_dir: Path = VECTORSTORE_DIR,
 ) -> FAISS:
     if embeddings is None:
@@ -41,7 +40,7 @@ def create_vector_store(
 
 
 def load_vector_store(
-    embeddings: Optional[HuggingFaceEmbeddings] = None,
+    embeddings=None,
     persist_dir: Path = VECTORSTORE_DIR,
 ) -> FAISS:
     if embeddings is None:
