@@ -8,8 +8,9 @@ from langchain_core.documents import Document
 
 from src.config import EMBEDDING_MODEL_NAME, VECTORSTORE_DIR, TOP_K, GOOGLE_API_KEY
 
-BATCH_SIZE = 80
-BATCH_DELAY = 62
+BATCH_SIZE = 20
+BATCH_DELAY = 65
+MAX_RETRIES = 5
 
 
 def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME):
@@ -22,6 +23,20 @@ def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME):
     return embeddings
 
 
+def _embed_batch_with_retry(func, *args, retries=MAX_RETRIES):
+    for attempt in range(retries):
+        try:
+            return func(*args)
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait = 65 * (attempt + 1)
+                print(f"  Rate limited. Retrying in {wait}s (attempt {attempt + 1}/{retries})...")
+                time.sleep(wait)
+            else:
+                raise
+    raise Exception("Max retries exceeded for embedding batch")
+
+
 def create_vector_store(
     chunks: List[Document],
     embeddings=None,
@@ -31,22 +46,21 @@ def create_vector_store(
         embeddings = get_embedding_model()
 
     total = len(chunks)
-    print(f"Creating FAISS vector store from {total} chunks (batch size={BATCH_SIZE})...")
+    total_batches = (total + BATCH_SIZE - 1) // BATCH_SIZE
+    print(f"Creating FAISS vector store from {total} chunks ({total_batches} batches of {BATCH_SIZE})...")
 
-    vector_store = FAISS.from_documents(
-        documents=chunks[:BATCH_SIZE],
-        embedding=embeddings,
+    vector_store = _embed_batch_with_retry(
+        FAISS.from_documents, chunks[:BATCH_SIZE], embeddings
     )
-    print(f"  Batch 1/{(total + BATCH_SIZE - 1) // BATCH_SIZE} done ({min(BATCH_SIZE, total)}/{total} chunks)")
+    print(f"  Batch 1/{total_batches} done ({min(BATCH_SIZE, total)}/{total} chunks)")
 
     for i in range(BATCH_SIZE, total, BATCH_SIZE):
         batch = chunks[i:i + BATCH_SIZE]
         batch_num = (i // BATCH_SIZE) + 1
-        total_batches = (total + BATCH_SIZE - 1) // BATCH_SIZE
         print(f"  Waiting {BATCH_DELAY}s for rate limit reset...")
         time.sleep(BATCH_DELAY)
         print(f"  Batch {batch_num}/{total_batches} embedding {len(batch)} chunks...")
-        vector_store.add_documents(batch)
+        _embed_batch_with_retry(vector_store.add_documents, batch)
         print(f"  Batch {batch_num}/{total_batches} done ({min(i + BATCH_SIZE, total)}/{total} chunks)")
 
     persist_dir.mkdir(parents=True, exist_ok=True)
