@@ -1,11 +1,6 @@
 import time
 import gradio as gr
 
-from src.config import PDF_PATH
-from src.document_processor import process_document
-from src.vector_store import build_or_load_vector_store, vector_store_exists
-from src.rag_pipeline import ask_question
-
 vector_store = None
 
 
@@ -16,6 +11,10 @@ def initialize_system():
         return "System already initialized and ready."
 
     try:
+        from src.config import PDF_PATH
+        from src.document_processor import process_document
+        from src.vector_store import build_or_load_vector_store, vector_store_exists
+
         if vector_store_exists():
             vector_store = build_or_load_vector_store()
             return "Vector store loaded from disk. Ready to answer questions!"
@@ -42,6 +41,8 @@ def answer_query(question, history):
         return "Please enter a question.", ""
 
     try:
+        from src.rag_pipeline import ask_question
+
         start_time = time.time()
         answer, sources = ask_question(vector_store, question)
         elapsed = round(time.time() - start_time, 2)
