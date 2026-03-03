@@ -144,12 +144,17 @@ def build_ui():
 
 
 if __name__ == "__main__":
+    import os
+
+    port = int(os.environ.get("PORT", 7860))
+    is_cloud = os.environ.get("RENDER") or os.environ.get("PORT")
+
     app = build_ui()
     app.launch(
         server_name="0.0.0.0",
-        server_port=7860,
-        share=True,
-        inbrowser=True,
+        server_port=port,
+        share=not is_cloud,
+        inbrowser=not is_cloud,
         theme=gr.themes.Soft(primary_hue="orange", secondary_hue="amber"),
         css=".gradio-container { max-width: 1000px; margin: auto; } .source-box { max-height: 400px; overflow-y: auto; }",
     )

@@ -1,11 +1,9 @@
 # Environment
 .env
 venv/
+.venv/
 __pycache__/
 *.pyc
-
-# Vector store (auto-generated)
-vectorstore/
 
 # IDE
 .vscode/
