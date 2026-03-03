@@ -146,8 +146,10 @@ def build_ui():
 if __name__ == "__main__":
     import os
 
-    port = int(os.environ.get("PORT", 7860))
-    is_cloud = os.environ.get("RENDER") or os.environ.get("PORT")
+    port = int(os.environ.get("PORT", 10000))
+    is_cloud = os.environ.get("RENDER", "")
+
+    print(f"Starting server on port {port} (cloud={bool(is_cloud)})")
 
     app = build_ui()
     app.launch(
