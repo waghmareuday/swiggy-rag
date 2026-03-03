@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -6,6 +7,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 
 from src.config import EMBEDDING_MODEL_NAME, VECTORSTORE_DIR, TOP_K, GOOGLE_API_KEY
+
+BATCH_SIZE = 80
+BATCH_DELAY = 62
 
 
 def get_embedding_model(model_name: str = EMBEDDING_MODEL_NAME):
@@ -26,11 +30,24 @@ def create_vector_store(
     if embeddings is None:
         embeddings = get_embedding_model()
 
-    print(f"Creating FAISS vector store from {len(chunks)} chunks...")
+    total = len(chunks)
+    print(f"Creating FAISS vector store from {total} chunks (batch size={BATCH_SIZE})...")
+
     vector_store = FAISS.from_documents(
-        documents=chunks,
+        documents=chunks[:BATCH_SIZE],
         embedding=embeddings,
     )
+    print(f"  Batch 1/{(total + BATCH_SIZE - 1) // BATCH_SIZE} done ({min(BATCH_SIZE, total)}/{total} chunks)")
+
+    for i in range(BATCH_SIZE, total, BATCH_SIZE):
+        batch = chunks[i:i + BATCH_SIZE]
+        batch_num = (i // BATCH_SIZE) + 1
+        total_batches = (total + BATCH_SIZE - 1) // BATCH_SIZE
+        print(f"  Waiting {BATCH_DELAY}s for rate limit reset...")
+        time.sleep(BATCH_DELAY)
+        print(f"  Batch {batch_num}/{total_batches} embedding {len(batch)} chunks...")
+        vector_store.add_documents(batch)
+        print(f"  Batch {batch_num}/{total_batches} done ({min(i + BATCH_SIZE, total)}/{total} chunks)")
 
     persist_dir.mkdir(parents=True, exist_ok=True)
     vector_store.save_local(str(persist_dir))
